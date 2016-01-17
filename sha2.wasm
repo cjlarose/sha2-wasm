@@ -1,0 +1,173 @@
+(module
+  (memory 608
+    ;; Digest. Bytes 0-31
+    (segment 0 "\6a\09\e6\67")
+    (segment 4 "\bb\67\ae\85")
+    (segment 8 "\3c\6e\f3\72")
+    (segment 12 "\a5\4f\f5\3a")
+    (segment 16 "\51\0e\52\7f")
+    (segment 20 "\9b\05\68\8c")
+    (segment 24 "\1f\83\d9\ab")
+    (segment 28 "\5b\e0\cd\19")
+
+    ;; k-values. Bytes 32-287
+    (segment 32 "\42\8a\2f\98\71\37\44\91\b5\c0\fb\cf\e9\b5\db\a5\39\56\c2\5b\59\f1\11\f1\92\3f\82\a4\ab\1c\5e\d5")
+    (segment 64 "\d8\07\aa\98\12\83\5b\01\24\31\85\be\55\0c\7d\c3\72\be\5d\74\80\de\b1\fe\9b\dc\06\a7\c1\9b\f1\74")
+    (segment 96 "\e4\9b\69\c1\ef\be\47\86\0f\c1\9d\c6\24\0c\a1\cc\2d\e9\2c\6f\4a\74\84\aa\5c\b0\a9\dc\76\f9\88\da")
+    (segment 128 "\98\3e\51\52\a8\31\c6\6d\b0\03\27\c8\bf\59\7f\c7\c6\e0\0b\f3\d5\a7\91\47\06\ca\63\51\14\29\29\67")
+    (segment 160 "\27\b7\0a\85\2e\1b\21\38\4d\2c\6d\fc\53\38\0d\13\65\0a\73\54\76\6a\0a\bb\81\c2\c9\2e\92\72\2c\85")
+    (segment 192 "\a2\bf\e8\a1\a8\1a\66\4b\c2\4b\8b\70\c7\6c\51\a3\d1\92\e8\19\d6\99\06\24\f4\0e\35\85\10\6a\a0\70")
+    (segment 224 "\19\a4\c1\16\1e\37\6c\08\27\48\77\4c\34\b0\bc\b5\39\1c\0c\b3\4e\d8\aa\4a\5b\9c\ca\4f\68\2e\6f\f3")
+    (segment 256 "\74\8f\82\ee\78\a5\63\6f\84\c8\78\14\8c\c7\02\08\90\be\ff\fa\a4\50\6c\eb\be\f9\a3\f7\c6\71\78\f2")
+
+    ;; message schedule array (w) (64 32-bit words). Bytes 288-543.
+
+    ;; input storage (64 bytes). Bytes 544-607
+    (segment 544 "abcd"))
+
+  ;; copies $num_words words from src to dest. No overlap check. Returns dest
+  (func $memcpy32 (param $dest i32) (param $src i32) (param $num_words i32) (result i32)
+    (local $offset i32)
+    (local $end_offset i32)
+    (set_local $end_offset (i32.shl (get_local $num_words) (i32.const 2)))
+
+    (loop $end_loop $begin_loop
+      (br_if
+        (i32.ge_s (get_local $offset) (get_local $end_offset))
+        $end_loop)
+      (i32.store
+        (i32.add (get_local $dest) (get_local $offset))
+        (i32.load (i32.add (get_local $src) (get_local $offset))))
+      (set_local $offset (i32.add (get_local $offset) (i32.const 4)))
+      (br $begin_loop))
+
+    (return (get_local $dest)))
+
+  (func $rightrotate32 (param $x i32) (param $shift i32) (result i32)
+    (return (i32.const 5)))
+
+  (export "sha256" 2)
+  (func $sha256 (param $byte_length i32) (param $input i32)
+    (local $i i32)
+    (local $s0 i32)
+    (local $s1 i32)
+    (local $a i32)
+    (local $b i32)
+    (local $c i32)
+    (local $d i32)
+    (local $e i32)
+    (local $f i32)
+    (local $g i32)
+    (local $h i32)
+    (local $S0 i32)
+    (local $S1 i32)
+    (local $ch i32)
+    (local $maj i32)
+    (local $tmp1 i32)
+    (local $tmp2 i32)
+
+    ;; append a '1' bit to the end of the input
+    (i32.store (get_local $byte_length) (i32.const 128))
+    ;; write the length at the end
+    (i32.store (i32.const 604) (get_local $byte_length))
+
+    ;; copy 16-word message into w beginning of w
+    (call $memcpy32 (i32.const 288) (i32.const 544) (i32.const 16))
+
+    ;; fill in the rest of w
+    (set_local $i (i32.const 16))
+    (loop $end_extend $begin_extend
+      (br_if
+        (i32.ge_s (get_local $i) (i32.const 64))
+        $end_extend)
+      (set_local $s0
+        (i32.xor
+          (i32.xor
+            (call $rightrotate32 (i32.load offset=288 (i32.sub (get_local $i) (i32.const 15))) (i32.const 7))
+            (call $rightrotate32 (i32.load offset=288 (i32.sub (get_local $i) (i32.const 15))) (i32.const 18)))
+          (call $rightrotate32 (i32.load offset=288 (i32.sub (get_local $i) (i32.const 15))) (i32.const 3))))
+      (set_local $s1
+        (i32.xor
+          (i32.xor
+            (call $rightrotate32 (i32.load offset=288 (i32.sub (get_local $i) (i32.const 2))) (i32.const 17))
+            (call $rightrotate32 (i32.load offset=288 (i32.sub (get_local $i) (i32.const 2))) (i32.const 19)))
+          (call $rightrotate32 (i32.load offset=288 (i32.sub (get_local $i) (i32.const 2))) (i32.const 10))))
+      (i32.store offset=288 (get_local $i)
+        (i32.add
+          (i32.add
+            (i32.add
+              (i32.load offset=288 (i32.sub (get_local $i) (i32.const 16)))
+              (get_local $s0))
+            (i32.load offset=288 (i32.sub (get_local $i) (i32.const 7))))
+          (get_local $s1)))
+      (set_local $i (i32.add (get_local $i) (i32.const 1)))
+      (br $begin_extend))
+
+    ;; Initialize working variables to current hash value
+    (set_local $a (i32.load (i32.const 0)))
+    (set_local $b (i32.load (i32.const 4)))
+    (set_local $c (i32.load (i32.const 8)))
+    (set_local $d (i32.load (i32.const 12)))
+    (set_local $e (i32.load (i32.const 16)))
+    (set_local $f (i32.load (i32.const 20)))
+    (set_local $g (i32.load (i32.const 24)))
+    (set_local $h (i32.load (i32.const 28)))
+
+    (set_local $i (i32.const 0))
+    (loop $end_compression $begin_compression
+      (br_if
+        (i32.ge_s (get_local $i) (i32.const 64))
+        $end_compression)
+      (set_local $S1
+        (i32.xor
+          (i32.xor
+            (call $rightrotate32 (get_local $e) (i32.const 6))
+            (call $rightrotate32 (get_local $e) (i32.const 11)))
+          (call $rightrotate32 (get_local $e) (i32.const 25))))
+      (set_local $ch
+        (i32.xor
+          (i32.and (get_local $e) (get_local $f))
+          (i32.and (i32.xor (get_local $e) (i32.const -1)) (get_local $g))))
+      (set_local $tmp1
+        (i32.add
+          (i32.add
+            (i32.add (get_local $h) (get_local $S1))
+            (get_local $ch))
+          (i32.load offset=32 (get_local $i))))
+      (set_local $S0
+        (i32.xor
+          (i32.xor
+            (call $rightrotate32 (get_local $a) (i32.const 2))
+            (call $rightrotate32 (get_local $a) (i32.const 13)))
+          (call $rightrotate32 (get_local $a) (i32.const 22))))
+      (set_local $maj
+        (i32.xor
+          (i32.xor
+            (i32.and (get_local $a) (get_local $b))
+            (i32.and (get_local $a) (get_local $c)))
+          (i32.and (get_local $b) (get_local $c))))
+      (set_local $tmp2
+        (i32.add (get_local $S0) (get_local $maj)))
+
+      (set_local $h (get_local $g))
+      (set_local $g (get_local $f))
+      (set_local $f (get_local $e))
+      (set_local $e (i32.add (get_local $d) (get_local $tmp1)))
+      (set_local $d (get_local $c))
+      (set_local $c (get_local $b))
+      (set_local $b (get_local $a))
+      (set_local $a (i32.add (get_local $tmp1) (get_local $tmp2)))
+
+      (set_local $i (i32.add (get_local $i) (i32.const 1)))
+      (br $begin_compression))
+
+    (i32.store (i32.const 0) (i32.add (i32.load (i32.const 0)) (get_local $a)))
+    (i32.store (i32.const 4) (i32.add (i32.load (i32.const 4)) (get_local $b)))
+    (i32.store (i32.const 8) (i32.add (i32.load (i32.const 8)) (get_local $c)))
+    (i32.store (i32.const 12) (i32.add (i32.load (i32.const 12)) (get_local $d)))
+    (i32.store (i32.const 16) (i32.add (i32.load (i32.const 16)) (get_local $e)))
+    (i32.store (i32.const 20) (i32.add (i32.load (i32.const 20)) (get_local $f)))
+    (i32.store (i32.const 24) (i32.add (i32.load (i32.const 24)) (get_local $g)))
+    (i32.store (i32.const 28) (i32.add (i32.load (i32.const 28)) (get_local $h)))))
+
+(invoke "sha256" (i32.const 4) (i32.const 288))
