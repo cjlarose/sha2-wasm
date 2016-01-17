@@ -73,7 +73,7 @@
     (i32.store (i32.const 604) (get_local $byte_length))
 
     ;; TODO: Chunk message into 16-word pieces
-    ;; copy 16-word message into w beginning of w
+    ;; copy 16-word message into beginning of w
     (call $memcpy32 (i32.const 288) (i32.const 544) (i32.const 16))
 
     ;; fill in the rest of w
