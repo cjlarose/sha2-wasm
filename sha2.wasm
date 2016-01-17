@@ -44,6 +44,7 @@
     (return (get_local $dest)))
 
   (func $rightrotate32 (param $x i32) (param $shift i32) (result i32)
+    ;; TODO: this
     (return (i32.const 5)))
 
   (export "sha256" 2)
@@ -71,6 +72,7 @@
     ;; write the length at the end
     (i32.store (i32.const 604) (get_local $byte_length))
 
+    ;; TODO: Chunk message into 16-word pieces
     ;; copy 16-word message into w beginning of w
     (call $memcpy32 (i32.const 288) (i32.const 544) (i32.const 16))
 
