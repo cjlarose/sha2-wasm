@@ -44,8 +44,10 @@
     (return (get_local $dest)))
 
   (func $rightrotate32 (param $x i32) (param $shift i32) (result i32)
-    ;; TODO: this
-    (return (i32.const 5)))
+    (return
+      (i32.or
+        (i32.shr_u (get_local $x) (get_local $shift))
+        (i32.shl (get_local $x) (i32.sub (i32.const 32) (get_local $shift))))))
 
   (export "sha256" 2)
   (func $sha256 (param $byte_length i32) (param $input i32)
